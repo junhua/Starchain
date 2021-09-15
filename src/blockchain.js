@@ -64,16 +64,19 @@ class Blockchain {
     _addBlock(block) {
         let self = this;
         return new Promise(async (resolve, reject) => {
-            if (self.height >= 0) {
-                block.previousBlockHash = self.chain[self.height].hash
+            try {
+                if (self.height >= 0) {
+                    block.previousBlockHash = self.chain[self.height].hash
+                }
+                block.height = self.chain.length
+                block.time = new Date().getTime().toString().slice(0, -3)
+                block.hash = SHA256(JSON.stringify(block)).toString()
+                this.chain.push(block)
+                this.height = block.height
+                resolve(block)
+            } catch (err) {
+                reject(`An error occur: ${err}`)
             }
-            block.height = self.chain.length
-            block.time = new Date().getTime().toString().slice(0, -3)
-            block.hash = SHA256(JSON.stringify(block)).toString()
-            this.chain.push(block)
-            this.height = block.height
-            resolve(block)
-
         });
     }
 
@@ -113,16 +116,17 @@ class Blockchain {
         return new Promise(async (resolve, reject) => {
             let time = parseInt(message.split(':')[1])
             let currentTime = parseInt(new Date().getTime().toString().slice(0, -3))
-            if (currentTime - time < 5) {
+            if (currentTime - time > 300) {
+                if (bitcoinMessage.verify(message, address, signature)) {
+                    resolve(this._addBlock(new BlockClass.Block({
+                        "address": address,
+                        "signature": signature,
+                        "message": message,
+                        "star": star
+                    })))
+                }
+            } else {
                 reject(Error("Time elapsed is less than 5 minutes."))
-            }
-            if (bitcoinMessage.verify(message, address, signature)) {
-                resolve(this._addBlock(new BlockClass.Block({
-                    "address": address,
-                    "signature": signature,
-                    "message": message,
-                    "star": star
-                })))
             }
         });
     }
@@ -171,12 +175,13 @@ class Blockchain {
         let self = this;
         let stars = [];
         return new Promise((resolve, reject) => {
-            self.chain.forEach(async(b) => {
+            self.chain.forEach(async (b) => {
                 let data = await b.getBData()
                 if (data.address === address) stars.push(data)
             })
+
             resolve(stars)
-            
+
         });
     }
 
@@ -186,20 +191,48 @@ class Blockchain {
      * 1. You should validate each block using `validateBlock`
      * 2. Each Block should check the with the previousBlockHash
      */
+    // validateChain() {
+    //     let self = this;
+    //     let errorLog = [];
+    //     return new Promise(async (resolve, reject) => {
+    //         errorLog = self.chain.filter((block) => {
+    //             if (block.height == 0)
+    //                 block.validate()
+    //             else
+    //                 block.validate() && block.previousBlockHash === self.chain[block.height - 1].hash
+    //         })
+    //         resolve(errorLog)
+    //     });
+    // }
+
+
     validateChain() {
         let self = this;
         let errorLog = [];
         return new Promise(async (resolve, reject) => {
-            errorLog = self.chain.filter((block) => {
-                if (block.height == 0)
-                    block.validate()
-                else
-                    block.validate() && block.previousBlockHash === self.chain[block.height - 1].hash
-            })
-            resolve(errorLog)
+            let promises = [];
+            self.chain.forEach(block => {
+                promises.push(block.validate());
+                if (block.height > 0) {
+                    if (block.previousBlockHash != self.chain[block.height - 1].hash) {
+                        errorLog.push(`Previous block hash doesn't match at block heigh: ${block.height}.`);
+                    }
+                }
+            });
+
+            Promise.all(promises).then((results) => {
+                i = 0;
+                results.forEach(valid => {
+                    if (!valid) {
+                        errorLog.push(`Block tampered at heigh: ${self.chain[i].height}`);
+                    }
+                    i++;
+                });
+                resolve(errorLog);
+            }).catch((err) => { reject(Error(err)) });
+
         });
     }
-
 }
 
 module.exports.Blockchain = Blockchain;
