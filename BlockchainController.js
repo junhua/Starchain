@@ -119,7 +119,7 @@ class BlockchainController {
     }
 
     // This endpoint allows you to validate the chain and return a list of errors
-    getStarsByOwner() {
+    validateChain() {
         this.app.get("/validatechain", async (req, res) => {
             try {
                 let errorLog = await this.blockchain.validateChain();
