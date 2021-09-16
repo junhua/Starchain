@@ -46,7 +46,7 @@ class Block {
             // Returning the Block is not valid
             self.hash = null
             let recalHash = SHA256(JSON.stringify(self)).toString()
-
+            self.hash = currentHash
             // Returning the Block is valid
 
             resolve(currentHash === recalHash)

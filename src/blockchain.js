@@ -116,7 +116,7 @@ class Blockchain {
         return new Promise(async (resolve, reject) => {
             let time = parseInt(message.split(':')[1])
             let currentTime = parseInt(new Date().getTime().toString().slice(0, -3))
-            if (currentTime - time > 300) {
+            if (currentTime - time < 300) {
                 if (bitcoinMessage.verify(message, address, signature)) {
                     resolve(this._addBlock(new BlockClass.Block({
                         "address": address,
@@ -191,20 +191,6 @@ class Blockchain {
      * 1. You should validate each block using `validateBlock`
      * 2. Each Block should check the with the previousBlockHash
      */
-    // validateChain() {
-    //     let self = this;
-    //     let errorLog = [];
-    //     return new Promise(async (resolve, reject) => {
-    //         errorLog = self.chain.filter((block) => {
-    //             if (block.height == 0)
-    //                 block.validate()
-    //             else
-    //                 block.validate() && block.previousBlockHash === self.chain[block.height - 1].hash
-    //         })
-    //         resolve(errorLog)
-    //     });
-    // }
-
 
     validateChain() {
         let self = this;
@@ -221,7 +207,7 @@ class Blockchain {
             });
 
             Promise.all(promises).then((results) => {
-                i = 0;
+                let i = 0;
                 results.forEach(valid => {
                     if (!valid) {
                         errorLog.push(`Block tampered at heigh: ${self.chain[i].height}`);
